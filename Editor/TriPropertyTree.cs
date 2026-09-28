@@ -55,8 +55,14 @@ namespace TriInspector
             ValidationRequired = false;
 
             Profiler.BeginSample("TriInspector.RunValidation");
-            RootProperty.RunValidation();
-            Profiler.EndSample();
+            try
+            {
+                RootProperty.RunValidation();
+            }
+            finally
+            {
+                Profiler.EndSample();
+            }
         }
 
         public VisualElement GetRootElement()

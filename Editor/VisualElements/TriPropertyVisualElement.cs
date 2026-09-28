@@ -50,7 +50,10 @@ namespace TriInspector.VisualElements
             }
 
             Sync();
-            element.PeriodicRun(Sync);
+            if (property.Definition.HideProcessors.Count != 0 || property.Definition.DisableProcessors.Count != 0)
+            {
+                element.PeriodicRun(Sync);
+            }
         }
 
         private static VisualElement CreateElement(TriProperty property, Props props)

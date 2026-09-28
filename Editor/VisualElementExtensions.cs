@@ -43,7 +43,7 @@ namespace TriInspector
         public static void TrackResolvedValue<T>(this VisualElement el,
             TriProperty property, ValueResolver<T> resolver, T defaultValue, Action<T> callback)
         {
-            el.PeriodicRun(() =>
+            void Sync()
             {
                 try
                 {
@@ -53,7 +53,16 @@ namespace TriInspector
                 {
                     Debug.LogException(ex);
                 }
-            });
+            }
+
+            if (resolver is ConstantValueResolver<T>)
+            {
+                el.schedule.Execute(Sync);
+            }
+            else
+            {
+                el.PeriodicRun(Sync);
+            }
         }
 
         public static void TrackPropertyValueChanged(this VisualElement element,
@@ -84,13 +93,28 @@ namespace TriInspector
 
         private static void AutoSyncLabelFromProperty(VisualElement el, TriProperty property, Action<string> setText)
         {
+            string previousText = null;
+            string previousTooltip = null;
+            var initialized = false;
+
             void Sync()
             {
                 var name = property.DisplayNameContent;
                 try
                 {
-                    setText(name.text);
-                    el.tooltip = name.tooltip;
+                    if (!initialized || previousText != name.text)
+                    {
+                        setText(name.text);
+                        previousText = name.text;
+                    }
+
+                    if (!initialized || previousTooltip != name.tooltip)
+                    {
+                        el.tooltip = name.tooltip;
+                        previousTooltip = name.tooltip;
+                    }
+
+                    initialized = true;
                 }
                 catch (Exception ex)
                 {

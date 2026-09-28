@@ -9,14 +9,16 @@ namespace TriInspector
     {
         private readonly SerializedObject _serializedObject;
         private readonly SerializedProperty _scriptProperty;
+        private readonly UnityEngine.Object[] _targetObjects;
 
         public TriPropertyTreeForSerializedObject([NotNull] SerializedObject serializedObject)
         {
             _serializedObject = serializedObject ?? throw new ArgumentNullException(nameof(serializedObject));
             _scriptProperty = serializedObject.FindProperty("m_Script");
+            _targetObjects = serializedObject.targetObjects;
 
             TargetObjectType = _serializedObject.targetObject.GetType();
-            TargetsCount = _serializedObject.targetObjects.Length;
+            TargetsCount = _targetObjects.Length;
             TargetIsPersistent = _serializedObject.targetObject is var targetObject &&
                                  targetObject != null && EditorUtility.IsPersistent(targetObject);
 
@@ -26,8 +28,8 @@ namespace TriInspector
                 order: -1,
                 fieldName: "ROOT",
                 fieldType: TargetObjectType,
-                valueGetter: (self, targetIndex) => _serializedObject.targetObjects[targetIndex],
-                valueSetter: (self, targetIndex, value) => _serializedObject.targetObjects[targetIndex],
+                valueGetter: (self, targetIndex) => _targetObjects[targetIndex],
+                valueSetter: (self, targetIndex, value) => _targetObjects[targetIndex],
                 attributes: Array.Empty<Attribute>(),
                 isArrayElement: false);
 
@@ -65,13 +67,13 @@ namespace TriInspector
 
         public override void ForceCreateUndoGroup()
         {
-            Undo.RegisterCompleteObjectUndo(_serializedObject.targetObjects, "Inspector");
+            Undo.RegisterCompleteObjectUndo(_targetObjects, "Inspector");
             Undo.FlushUndoRecordObjects();
         }
 
         private void OnPropertyChanged(TriProperty changedProperty)
         {
-            foreach (var targetObject in _serializedObject.targetObjects)
+            foreach (var targetObject in _targetObjects)
             {
                 EditorUtility.SetDirty(targetObject);
             }

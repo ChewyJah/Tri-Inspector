@@ -1,14 +1,17 @@
 ﻿using UnityEditor;
 using UnityEditor.UIElements;
+using Unity.Profiling;
 using UnityEngine.UIElements;
 
 namespace TriInspector.Editors
 {
     public class TriEditorCore
     {
+        private static readonly ProfilerMarker UpdateMarker = new ProfilerMarker("TriInspector.Update");
         private readonly SerializedObject _serializedObject;
 
         private TriPropertyTreeForSerializedObject _inspector;
+        private IVisualElementScheduledItem _updateSchedule;
 
         public TriEditorCore(Editor editor)
         {
@@ -24,6 +27,8 @@ namespace TriInspector.Editors
 
         public void Dispose()
         {
+            _updateSchedule?.Pause();
+            _updateSchedule = null;
             if (_inspector != null)
             {
                 _inspector.Dispose();
@@ -34,6 +39,7 @@ namespace TriInspector.Editors
 
         public VisualElement CreateVisualElement()
         {
+            _updateSchedule?.Pause();
             var serializedObject = _serializedObject;
 
             var container = new VisualElement();
@@ -67,11 +73,12 @@ namespace TriInspector.Editors
 
             container.Add(_inspector.GetRootElement());
 
-            container.schedule.Execute(() =>
+            _updateSchedule = container.schedule.Execute(() =>
             {
+                using var sample = UpdateMarker.Auto();
                 _inspector.Update();
                 _inspector.RunValidationIfRequired();
-            }).Every(0);
+            }).Every(VisualElementExtensions.PollIntervalMs);
 
             return container;
         }

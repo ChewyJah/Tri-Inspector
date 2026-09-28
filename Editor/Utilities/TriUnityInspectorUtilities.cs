@@ -19,7 +19,8 @@ namespace TriInspector.Utilities
                 return true;
             }
 
-            return !property.IsArray && property.TryGetAttribute(out DrawWithUnityAttribute _);
+            return (!property.IsArray || property.IsDictionary) &&
+                   property.TryGetAttribute(out DrawWithUnityAttribute _);
         }
 
         public static string GetStandardArrayElementName(TriProperty property)

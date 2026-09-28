@@ -239,6 +239,10 @@ namespace TriInspector
         [CanBeNull]
         internal object DictionaryListCache { get; set; }
 
+#if UNITY_6000_6_OR_NEWER
+        internal uint DictionaryListCacheHash { get; set; }
+#endif
+
         public TriArray<TriCustomDrawer> AllDrawers => _definition.Drawers;
 
         internal TriArray<string> ExtensionErrors => _definition.ExtensionErrors;
@@ -594,7 +598,7 @@ namespace TriInspector
                     }
                 }
 
-                var changed = _validationResults.Count > 0 || newResults?.Count > 0;
+                var changed = !ValidationResultsEqual(_validationResults, newResults);
 
                 _validationResults = newResults;
 
@@ -611,6 +615,31 @@ namespace TriInspector
                     childrenProperty.RunValidation();
                 }
             }
+        }
+
+        private static bool ValidationResultsEqual(TriArray<TriValidationResult> previous,
+            List<TriValidationResult> current)
+        {
+            if (previous.Count != (current?.Count ?? 0))
+            {
+                return false;
+            }
+
+            for (var i = 0; i < previous.Count; i++)
+            {
+                var left = previous[i];
+                var right = current[i];
+                if (left.Message != right.Message || left.MessageType != right.MessageType ||
+                    left.FixAction != right.FixAction ||
+                    left.FixActionContent?.text != right.FixActionContent?.text ||
+                    left.FixActionContent?.tooltip != right.FixActionContent?.tooltip ||
+                    left.FixActionContent?.image != right.FixActionContent?.image)
+                {
+                    return false;
+                }
+            }
+
+            return true;
         }
 
         internal void EnumerateValidationResults(Action<TriProperty, TriValidationResult> call)

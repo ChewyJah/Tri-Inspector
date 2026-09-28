@@ -5,6 +5,7 @@ using System.Reflection;
 using JetBrains.Annotations;
 using TriInspector.Resolvers;
 using TriInspector.Utilities;
+using Unity.Profiling;
 using UnityEngine;
 using Attribute = System.Attribute;
 
@@ -12,6 +13,7 @@ namespace TriInspector
 {
     public class TriPropertyDefinition
     {
+        private static readonly ProfilerMarker ReadDictionaryMarker = new ProfilerMarker("TriInspector.ReadDictionary");
         private readonly ValueGetterDelegate _valueGetter;
         [CanBeNull] private readonly ValueSetterDelegate _valueSetter;
 
@@ -385,12 +387,20 @@ namespace TriInspector
                 {
                     duplicateEntryIndices.Clear();
                     nullKeyEntryIndices.Clear();
-                    return makeList!.Invoke(null, new object[] {null,});
+                    return self.DictionaryListCache ??= makeList!.Invoke(null, new object[] {null,});
                 }
 
 #if UNITY_6000_6_OR_NEWER
                 if (self.TryGetSerializedProperty(out var serializedProperty))
                 {
+                    var contentHash = serializedProperty.contentHash;
+                    if (!serializedProperty.serializedObject.hasModifiedProperties &&
+                        self.DictionaryListCache != null && self.DictionaryListCacheHash == contentHash)
+                    {
+                        return self.DictionaryListCache;
+                    }
+
+                    using var sample = ReadDictionaryMarker.Auto();
                     var listFromSerialized =
                         makeListFromSerializedProperty!.Invoke(null, new object[] {serializedProperty,});
 
@@ -402,6 +412,8 @@ namespace TriInspector
                     nullKeyEntryIndices.Clear();
                     nullKeyEntryIndices.AddRange(ignored.nullKeyEntryIndices ?? Array.Empty<int>());
 
+                    self.DictionaryListCacheHash = contentHash;
+                    self.DictionaryListCache = listFromSerialized;
                     return listFromSerialized;
                 }
 #endif
@@ -428,6 +440,7 @@ namespace TriInspector
 #if UNITY_6000_6_OR_NEWER
                 if (self.TryGetSerializedProperty(out var serializedProperty))
                 {
+                    self.DictionaryListCache = null;
                     writeToSerializedProperty!.Invoke(null, new object[] {value, serializedProperty,});
                     return self.Parent?.GetValue(targetIndex);
                 }
